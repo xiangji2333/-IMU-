@@ -1,0 +1,2 @@
+对六轴imu的一个信息提取，通过Windows的串口协议
+new data figure 是通过imu自身获取的加速度和角度对imu在世界坐标系下的位置解算
