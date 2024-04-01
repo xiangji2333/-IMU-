@@ -59,12 +59,12 @@ std::vector<double> getAngle(std::vector<uint8_t> dataHex) {
 	}
 	return angle;
 }
-int CheckSum = 0,Bytenum = 0,FrameState = 0;
 // imu信息解读
+int CheckSum = 0,Bytenum = 0,FrameState = 0;
+std::vector<uint8_t> accData(8);
+std::vector<uint8_t> gyroData(8);
+std::vector<uint8_t> angleData(8);
 void dueData(const std::vector<uint8_t>& inputData) {
-	std::vector<uint8_t> accData(8);
-	std::vector<uint8_t> gyroData(8);
-	std::vector<uint8_t> angleData(8);
 	for (int data : inputData) {
 		if (FrameState == 0) {
 			if (data == 0x55 && Bytenum == 0) {
@@ -137,7 +137,7 @@ void dueData(const std::vector<uint8_t>& inputData) {
 					in << now << ' ' <<std::fixed<<std::setprecision(10)<< result[0]*9.8 << " " << result[1]*9.8 << " " << result[2]*9.8 <<' '
 						<< result[6] << " " << result[7] << " " << result[8] << '\n';
 					//测试输出
-					//std::cout << "acc:" << std::fixed << std::setprecision(10) << result[0] << " " << result[1] << " " << result[2] << std::endl;
+					//std::cout << now << "acc:" << std::fixed << std::setprecision(10) << result[0] << " " << result[1] << " " << result[2] << std::endl;
 					//std::cout << "gyro:" << result[3] << " " << result[4] << " " << result[5] << std::endl;
 					//std::cout << "angle:" << result[6] << " " << result[7] << " " << result[8] << std::endl;
 				}
@@ -160,6 +160,7 @@ int main() {
 		FILE_ATTRIBUTE_NORMAL,
 		nullptr
 	);
+	COMMTIMEOUTS timeouts;
 
 	if (hSerial == INVALID_HANDLE_VALUE) {
 		std::cerr << "Error: Unable to open serial port." << std::endl;
@@ -175,12 +176,23 @@ int main() {
 	}
 
 	// 串口设置（可选）
-	dcbSerialParams.BaudRate = CBR_9600;
+	dcbSerialParams.BaudRate = 921600;
 	dcbSerialParams.ByteSize = 8;
 	dcbSerialParams.StopBits = ONESTOPBIT;
 	dcbSerialParams.Parity = NOPARITY;
 	if (!SetCommState(hSerial, &dcbSerialParams)) {
 		std::cerr << "Error: Unable to set serial port parameters." << std::endl;
+		CloseHandle(hSerial);
+		return 1;
+	}
+	// 设置超时时间
+	timeouts.ReadIntervalTimeout = 50;
+	timeouts.ReadTotalTimeoutConstant = 50;
+	timeouts.ReadTotalTimeoutMultiplier = 10;
+	timeouts.WriteTotalTimeoutConstant = 50;
+	timeouts.WriteTotalTimeoutMultiplier = 10;
+	if (!SetCommTimeouts(hSerial, &timeouts)) {
+		std::cerr << "Failed to set timeouts." << std::endl;
 		CloseHandle(hSerial);
 		return 1;
 	}
@@ -240,10 +252,13 @@ int main() {
 			std::cerr << "Error reading from serial port." << std::endl;
 			break;
 		}
-		if (bytesRead > 0) {
+		if (bytesRead == 33) {
+			//std::cout << bytesRead << '\n';
+			/*for (auto c : dataHex)printf("%x ", c);
+			std::cout << '\n';*/
 			dueData(dataHex);
 		}
-		Sleep(5);
+		//Sleep(5);
 	}
 
 	// 关闭串口

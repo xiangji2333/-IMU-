@@ -21,16 +21,16 @@ private:
     //全局坐标系位置
     Eigen::Vector3d position;
     //传感器时间间隔
-
-    double dt = 0.05;
+    double dt ;
 
 public:
+    long long pre = 0;
     imu_data() {
         velocity << 0, 0, 0;
         position << 0, 0, 0;
     }
 
-    void update(double acc_x, double acc_y, double acc_z, double pitch, double roll, double yaw) {
+    void update(long long timestamps,double acc_x, double acc_y, double acc_z, double pitch, double roll, double yaw) {
 
         //修改imu_data
         euler_angle << pitch * DEG_TO_ARC, roll* DEG_TO_ARC, yaw* DEG_TO_ARC;
@@ -40,7 +40,10 @@ public:
         rotation_matrix = Eigen::AngleAxisd(euler_angle[2], Eigen::Vector3d::UnitZ()) *
             Eigen::AngleAxisd(euler_angle[1], Eigen::Vector3d::UnitY()) *
             Eigen::AngleAxisd(euler_angle[0], Eigen::Vector3d::UnitX());
-
+        
+        dt = 1.0 * (timestamps - pre) / 1000;
+        pre = timestamps;
+        //std::cout << dt << std::endl;
         updateposition();
     }
 
@@ -82,10 +85,16 @@ int main() {
         //测试读取
         //std::cout << timestamps << ' ' << accx << ' ' << accy << ' ' << accz << ' ' << angx << ' ' << angy << ' ' << angz << std::endl;
 
-        imu.update(accx, accy, accz, angx, angy, angz);
+        if (imu.pre == 0) {
+            imu.pre = timestamps;
+            continue;
+        }
+
+        imu.update(timestamps,accx, accy, accz, angx, angy, angz);
         Eigen::Vector3d pos = imu.getposition();
         Eigen::Matrix3d remote = imu.getremote();
         //std::cout << std::fixed << std::setprecision(10) << timestamps << ' ' << pos[0] << ' ' << pos[1] << ' ' << pos[2] << std::endl;
+        //outfile << std::fixed << std::setprecision(10) << timestamps << ' ' << pos[0] << ' ' << pos[1] << ' ' << pos[2] << std::endl;
         outfile << std::fixed << std::setprecision(10) << timestamps 
             << ' ' << remote(0 ,0) << ' ' << remote(0, 1) << ' ' << remote(0, 2) << ' ' << pos[0] 
             << ' ' << remote(1, 0) << ' ' << remote(1, 1) << ' ' << remote(1, 2) << ' '<<pos[1] 
